@@ -37,7 +37,6 @@ parameters:
     label: Install or just Deploy?
     type: string
     description: Should we deploy anything on the cluster?
-    hidden: true
     default: "none"
     constraints:
      - allowed_values:
