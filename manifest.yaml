@@ -1,0 +1,9 @@
+Author: marc.villemade@scality.com
+Name: Metalk8S w/ Zenko 1-Click 1.1
+Description: 1-click template deployment with option to install Metalk8s only or Metalk8s & Zenko
+Format: Heat.HOT/1.0
+FullName: io.murano.apps.generated.metal.kubernetes.zenko
+Tags:
+- Heat-generated
+- Metalk8s
+Type: Application

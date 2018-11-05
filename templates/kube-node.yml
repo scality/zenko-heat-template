@@ -1,0 +1,22 @@
+metalk8s_lvm_default_vg: False 
+metalk8s_lvm_vgs: ['vg_metalk8s'] 
+metalk8s_lvm_drives_vg_metalk8s: ['/dev/vdb'] 
+metalk8s_lvm_lvs_vg_metalk8s:
+  lv01:
+    size: 90G
+  lv02:
+    size: 52G
+  lv03:
+    size: 50G
+  lv04:
+    size: 20G
+  lv05: 
+    size: 11G
+  lv06: 
+    size: 10G
+  lv07: 
+    size: 8G
+  lv08: 
+    size: 5G
+  lv09: 
+    size: 5G

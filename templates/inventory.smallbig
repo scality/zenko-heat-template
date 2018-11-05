@@ -1,0 +1,35 @@
+node-01 ansible_host=node-01 ansible_user=centos
+node-02 ansible_host=node-02 ansible_user=centos
+node-03 ansible_host=node-03 ansible_user=centos
+
+[bigserver]
+node-01
+
+[smallserver]
+node-02
+node-03
+
+[kube-master]
+node-01
+node-02
+node-03
+
+[etcd]
+node-01
+node-02
+node-03
+
+#[kube-node]
+#node-01
+#node-02
+#node-03
+
+[kube-node:children]
+bigserver
+smallserver
+
+[k8s-cluster:children]
+kube-node
+kube-master
+
+

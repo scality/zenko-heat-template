@@ -1,0 +1,206 @@
+---
+heat_template_version: 2015-10-15
+
+## Parameters
+description: 'K8S with Zenko 1-click'
+parameters:
+  image:
+    type: string
+    description: ID or name of the image to use for the instances to be created.
+    hidden: true
+    constraints:
+      - custom_constraint: glance.image
+        description: Must identify an image known to Glance
+    default: "CentOS-7-x86_64-GenericCloud-1708.qcow2"
+  key_name:
+    label: Keypair name?
+    type: string
+    description: Keypair to enable SSH access to the instances.
+    constraints:
+      - custom_constraint: nova.keypair
+        description: Must name a public key (pair) known to Nova
+  metalk8s_version:
+    label: What version of MetalK8S?
+    type: string
+#    hidden: true
+    description: MetalK8s version to install (only use master if you know what you're doing :)
+    default: "1.0.0"
+    constraints:
+     - allowed_pattern: "(master|1.[0-9].[0-9](-(RC|rc|alpha|beta)[0-9])?)"
+  node_count:
+    label: How many nodes?
+    type: string
+    hidden: true
+    description: How many nodes to deploy (3 should be enough for most deployments but it can be bumped to 5 if needed)
+    default: 3
+  install:
+    label: Install or just Deploy?
+    type: string
+    description: Should we deploy anything on the cluster?
+    hidden: true
+    default: "none"
+    constraints:
+     - allowed_values:
+       - none
+       - metalk8sonly
+       - both
+  zenko_version:
+    label: What version of Zenko? (github tag or master)
+    type: string
+#    hidden: true
+    description: Zenko   version to install
+    default: "1.0.0"
+    constraints:
+     - allowed_pattern: "(master|1.[0-9].[0-9](-(RC|rc|alpha|beta)[0-9])?)"
+  network:
+    type: string
+    description: Name or ID of network to create VMs on.
+    constraints:
+      - custom_constraint: neutron.network
+        description: Must be a network known to Neutron
+  #user_email:
+  #  label: Notification email?
+  #  type: string
+  #  description: Email to send an alert to when the stack is ready
+  #  default: "noalert"
+  hostnames:
+    type: comma_delimited_list
+    description: mapping of index to node number
+    hidden: true
+    default: "01,02,03,04,05"
+
+## resources
+resources:
+  master_node_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: network }
+      security_groups: 
+        - { get_resource: scal-security-group }
+
+  scal-security-group:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      description: "in:ssh,http,https - out:http,https,ping,dns"
+      rules:
+        - { direction: ingress, ethertype: IPv4, remote_mode: remote_group_id }
+        - { direction: ingress, ethertype: IPv6, remote_mode: remote_group_id }
+        - { direction: ingress, remote_ip_prefix: 10.0.0.0/8, port_range_min: 1, port_range_max: 65535, protocol: tcp }
+        - { direction: ingress, remote_ip_prefix: 10.0.0.0/8, port_range_min: 1, port_range_max: 65535, protocol: udp }
+        - { direction: ingress, remote_ip_prefix: 0.0.0.0/0, port_range_min: 80, port_range_max: 80, protocol: tcp }
+        - { direction: ingress, remote_ip_prefix: 0.0.0.0/0, port_range_min: 443, port_range_max: 443, protocol: tcp }
+        - { direction: egress, ethertype: IPv4, remote_mode: remote_group_id }
+        - { direction: egress, ethertype: IPv6, remote_mode: remote_group_id }
+        - { direction: egress, remote_ip_prefix: 0.0.0.0/0, protocol: icmp }
+        - { direction: egress, remote_ip_prefix: 0.0.0.0/0, port_range_min: 80, port_range_max: 80, protocol: tcp }
+        - { direction: egress, remote_ip_prefix: 0.0.0.0/0, port_range_min: 443, port_range_max: 443, protocol: tcp }
+        - { direction: egress, remote_ip_prefix: 10.200.0.0/16, port_range_min: 53, port_range_max: 53, protocol: tcp }
+        - { direction: egress, remote_ip_prefix: 10.200.0.0/16, port_range_min: 53, port_range_max: 53, protocol: udp }
+        - { direction: egress, remote_ip_prefix: 10.100.0.0/16, port_range_min: 53, port_range_max: 53, protocol: tcp }
+        - { direction: egress, remote_ip_prefix: 10.100.0.0/16, port_range_min: 53, port_range_max: 53, protocol: udp }
+
+  k8s_cluster_inventory:
+    type: OS::Heat::CloudConfig
+    properties:
+      cloud_config:
+        write_files:
+        - path: /root/inventory
+          content: 
+            {get_file: templates/inventory}
+        - path: /root/kube-node.yml
+          content: 
+            {get_file: templates/kube-node.yml}
+        - path: /root/bigserver.yml
+          content: 
+            {get_file: templates/bigserver.yml}
+        - path: /root/smallserver.yml
+          content: 
+            {get_file: templates/smallserver.yml}
+        - path: /etc/rsyslog.conf
+          content: 
+            {get_file: templates/rsyslog.conf}
+        - path: /etc/rsyslog.d/40-haproxy.conf
+          content: 
+            {get_file: templates/40-haproxy.conf}
+        - path: /root/haproxy.cfg
+          content: 
+            {get_file: templates/haproxy.cfg}
+
+#  k8s_cluster_groupvars:
+#    type: OS::Heat::CloudConfig
+#    properties:
+#      cloud_config:
+#        merge_how: 'dict(recurse_array,no_replace)+list(append)' # crazy need for the template to have this so it can copy multiple files. otherwise it only copies one.
+#        write_files:
+#        - path: /root/kube-node.yml
+#          content: 
+#            {get_file: kube-node.yml}
+            
+  master_boot_script:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: ungrouped
+      config:
+        str_replace:
+          template:  
+            { get_file: scripts/master_boot.sh }
+          params:
+            $nodeips: { get_attr: [group_of_servers, nodeip] }
+            #$email: { get_param: user_email }
+            $install: { get_param: install }
+            $METALK8S_VERSION: {get_param: metalk8s_version }
+            $ZENKO_VERSION: {get_param: zenko_version }
+        
+  server_init:
+    type: OS::Heat::MultipartMime
+    properties:
+      parts:
+      - config: {get_resource: k8s_cluster_inventory}
+#      - config: {get_resource: k8s_cluster_groupvars}
+      - config: {get_resource: master_boot_script}
+ 
+  ## Group of servers ##
+  group_of_servers:
+    type: OS::Heat::ResourceGroup
+    depends_on:
+      - scal-security-group
+    properties:
+      count: { get_param: node_count }
+      resource_def:
+        type: k8snode.yaml
+        properties:
+          node_map: { get_param: hostnames }
+          index: '%index%'
+          name_template:
+            list_join:
+              - '-'
+              - [ k8s, { get_param: 'OS::stack_name' }, node ]
+          flavor: m1.xlarge
+          image: { get_param: image }
+          key_name: { get_param: key_name }
+          network: { get_param: network }
+          security_group: { get_resource: scal-security-group }
+
+
+## master node
+  master:
+    type: OS::Nova::Server
+    depends_on:
+      - scal-security-group
+      - group_of_servers
+    properties:
+      flavor: m1.large
+      image: { get_param: image }
+      key_name: { get_param: key_name }
+      name:
+        list_join:
+          - '-'
+          - [ k8s, { get_param: 'OS::stack_name' }, master ]
+      user_data_format: RAW
+      config_drive: true
+      user_data:
+        get_resource: server_init
+      networks:
+        - network: { get_param: network }
+      security_groups:
+        - { get_resource: scal-security-group }

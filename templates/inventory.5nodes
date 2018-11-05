@@ -1,0 +1,39 @@
+node-01 ansible_host=node-01 ansible_user=root
+node-02 ansible_host=node-02 ansible_user=root
+node-03 ansible_host=node-03 ansible_user=root
+node-04 ansible_host=node-04 ansible_user=root
+node-05 ansible_host=node-05 ansible_user=root
+
+[bigserver]
+node-01
+
+[smallserver]
+node-02
+node-03
+node-04
+node-05
+
+[kube-master]
+node-01
+node-02
+node-03
+node-04
+node-05
+
+[etcd]
+node-01
+node-02
+node-03
+node-04
+node-05
+
+[kube-node:children]
+bigserver
+smallserver
+
+
+[k8s-cluster:children]
+kube-node
+kube-master
+
+

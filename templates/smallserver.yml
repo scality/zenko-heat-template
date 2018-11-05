@@ -1,0 +1,11 @@
+metalk8s_lvm_lvs_vg_metalk8s:
+  lv01:
+    size: 12G
+  lv02:
+    size: 22G
+  lv03:
+    size: 12G
+  lv04:
+    size: 10G
+  lv05:
+    size: 10G
