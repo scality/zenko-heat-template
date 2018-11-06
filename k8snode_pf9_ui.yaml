@@ -1,0 +1,73 @@
+---
+heat_template_version: 2015-10-15
+
+parameters:
+  node_map:
+    type: comma_delimited_list
+  index:
+    type: number
+  name_template:
+    type: string
+  flavor:
+    type: string
+    constraints:
+      - custom_constraint: nova.flavor
+    default: m1.xlarge
+  image:
+    type: string
+    description: ID or name of the image to use for the instances to be created.
+    constraints:
+      - custom_constraint: glance.image
+        description: Must identify an image known to Glance
+    default: "CentOS-7-x86_64-GenericCloud-1708.qcow2"
+  key_name:
+    type: string
+    description: Keypair to enable SSH access to the instances.
+    constraints:
+      - custom_constraint: nova.keypair
+        description: Must name a public key (pair) known to Nova
+  network:
+    type: string
+    description: Name or ID of network to create VMs on.
+    constraints:
+      - custom_constraint: neutron.network
+        description: Must be a network known to Neutron
+  security_group:
+    type: string
+
+resources:
+  cinder_volume_SATA:
+    type: OS::Cinder::Volume
+    properties:
+      size: 270
+      volume_type: SATA
+
+  server:
+    type: OS::Nova::Server
+    depends_on:
+      - cinder_volume_SATA
+    properties:
+      name:
+        list_join:
+          - '-'
+          - [ {get_param: name_template} , { get_param: [node_map, {get_param: index} ] } ]
+      flavor: { get_param: flavor }
+      image: { get_param: image }
+      key_name: { get_param: key_name }
+      block_device_mapping:
+        - device_name: vdb
+          volume_id: { get_resource: cinder_volume_SATA }
+      user_data_format: RAW
+      config_drive: true
+      user_data:
+        {get_file: node_boot.sh}
+      networks:
+        - network: { get_param: network }
+      security_groups:
+        - { get_param: security_group }
+
+
+outputs:
+  nodeip:
+    description: The IP addess of db
+    value: { get_attr: [server,first_address] }

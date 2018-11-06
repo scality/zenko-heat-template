@@ -2,11 +2,6 @@
 
 INSTALL_BASEPATH="/root/zk"
 LOGS_BASEPATH="/root/logs"
-#EMAIL="$email"
-#if [ "$EMAIL" == "noalert" ];
-#then
-#    EMAIL=""
-#fi
 
 if [ "$install" == "both" ];
 then

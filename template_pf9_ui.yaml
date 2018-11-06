@@ -48,7 +48,7 @@ parameters:
     type: string
 #    hidden: true
     description: Zenko   version to install
-    default: "1.0.1"
+    default: "1.0.0"
     constraints:
      - allowed_pattern: "(master|1.[0-9].[0-9](-(RC|rc|alpha|beta)[0-9])?)"
   network:
@@ -84,23 +84,19 @@ resources:
       rules:
         - { direction: ingress, ethertype: IPv4, remote_mode: remote_group_id }
         - { direction: ingress, ethertype: IPv6, remote_mode: remote_group_id }
-        - { direction: ingress, remote_ip_prefix: 0.0.0.0/0, port_range_min: 22, port_range_max: 22, protocol: tcp }
+        - { direction: ingress, remote_ip_prefix: 10.0.0.0/8, port_range_min: 1, port_range_max: 65535, protocol: tcp }
+        - { direction: ingress, remote_ip_prefix: 10.0.0.0/8, port_range_min: 1, port_range_max: 65535, protocol: udp }
         - { direction: ingress, remote_ip_prefix: 0.0.0.0/0, port_range_min: 80, port_range_max: 80, protocol: tcp }
         - { direction: ingress, remote_ip_prefix: 0.0.0.0/0, port_range_min: 443, port_range_max: 443, protocol: tcp }
-#        - { direction: ingress, remote_ip_prefix: 10.0.0.0/8, port_range_min: 1, port_range_max: 65535, protocol: tcp }
-#        - { direction: ingress, remote_ip_prefix: 10.0.0.0/8, port_range_min: 1, port_range_max: 65535, protocol: udp }
         - { direction: egress, ethertype: IPv4, remote_mode: remote_group_id }
         - { direction: egress, ethertype: IPv6, remote_mode: remote_group_id }
         - { direction: egress, remote_ip_prefix: 0.0.0.0/0, protocol: icmp }
         - { direction: egress, remote_ip_prefix: 0.0.0.0/0, port_range_min: 80, port_range_max: 80, protocol: tcp }
         - { direction: egress, remote_ip_prefix: 0.0.0.0/0, port_range_min: 443, port_range_max: 443, protocol: tcp }
-        - { direction: egress, remote_ip_prefix: 0.0.0.0/0, port_range_min: 53, port_range_max: 53, protocol: tcp }
-        - { direction: egress, remote_ip_prefix: 0.0.0.0/0, port_range_min: 53, port_range_max: 53, protocol: udp }
-#        - { direction: egress, remote_ip_prefix: 10.200.0.0/16, port_range_min: 53, port_range_max: 53, protocol: tcp }
-#        - { direction: egress, remote_ip_prefix: 10.200.0.0/16, port_range_min: 53, port_range_max: 53, protocol: udp }
-#        - { direction: egress, remote_ip_prefix: 10.100.0.0/16, port_range_min: 53, port_range_max: 53, protocol: tcp }
-#        - { direction: egress, remote_ip_prefix: 10.100.0.0/16, port_range_min: 53, port_range_max: 53, protocol: udp }
-
+        - { direction: egress, remote_ip_prefix: 10.200.0.0/16, port_range_min: 53, port_range_max: 53, protocol: tcp }
+        - { direction: egress, remote_ip_prefix: 10.200.0.0/16, port_range_min: 53, port_range_max: 53, protocol: udp }
+        - { direction: egress, remote_ip_prefix: 10.100.0.0/16, port_range_min: 53, port_range_max: 53, protocol: tcp }
+        - { direction: egress, remote_ip_prefix: 10.100.0.0/16, port_range_min: 53, port_range_max: 53, protocol: udp }
 
   k8s_cluster_inventory:
     type: OS::Heat::CloudConfig
@@ -109,25 +105,25 @@ resources:
         write_files:
         - path: /root/inventory
           content: 
-            {get_file: templates/inventory}
+            {get_file: inventory}
         - path: /root/kube-node.yml
           content: 
-            {get_file: templates/kube-node.yml}
+            {get_file: kube-node.yml}
         - path: /root/bigserver.yml
           content: 
-            {get_file: templates/bigserver.yml}
+            {get_file: bigserver.yml}
         - path: /root/smallserver.yml
           content: 
-            {get_file: templates/smallserver.yml}
+            {get_file: smallserver.yml}
         - path: /etc/rsyslog.conf
           content: 
-            {get_file: templates/rsyslog.conf}
+            {get_file: rsyslog.conf}
         - path: /etc/rsyslog.d/40-haproxy.conf
           content: 
-            {get_file: templates/40-haproxy.conf}
+            {get_file: 40-haproxy.conf}
         - path: /root/haproxy.cfg
           content: 
-            {get_file: templates/haproxy.cfg}
+            {get_file: haproxy.cfg}
 
 #  k8s_cluster_groupvars:
 #    type: OS::Heat::CloudConfig
@@ -146,7 +142,7 @@ resources:
       config:
         str_replace:
           template:  
-            { get_file: scripts/master_boot.sh }
+            { get_file: master_boot.sh }
           params:
             $nodeips: { get_attr: [group_of_servers, nodeip] }
             #$email: { get_param: user_email }
@@ -170,7 +166,7 @@ resources:
     properties:
       count: { get_param: node_count }
       resource_def:
-        type: k8snode.yaml
+        type: k8snode_pf9_ui.yaml
         properties:
           node_map: { get_param: hostnames }
           index: '%index%'
